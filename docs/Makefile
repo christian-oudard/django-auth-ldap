@@ -27,7 +27,7 @@ help:
 	@echo "	 doctest   to run all doctests embedded in the documentation (if enabled)"
 
 clean:
-	-rm -rf _build/*
+	-rm -rf _build
 
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) _build/html
@@ -86,3 +86,7 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) _build/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 		  "results in _build/doctest/output.txt."
+
+zip:
+	rm _build/html.zip
+	cd _build/html && zip -R ../html.zip '*' -x .buildinfo
