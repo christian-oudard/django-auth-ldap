@@ -88,5 +88,5 @@ doctest:
 		  "results in _build/doctest/output.txt."
 
 zip:
-	rm _build/html.zip
+	rm _build/html.zip || true
 	cd _build/html && zip -R ../html.zip '*' -x .buildinfo

@@ -8,7 +8,7 @@ setup(
     description="Django LDAP authentication backend",
     long_description="""This is a Django authentication backend that authenticates against an LDAP service. Configuration can be as simple as a single distinguished name template, but there are many rich configuration options for working with users, groups, and permissions.
     
-This package requires Django 1.1 and python-ldap.
+This package requires Python 2.3, Django 1.0, and python-ldap. Suggestions and feature requests are welcome.
     """,
     url="http://packages.python.org/django-auth-ldap/",
     author="Peter Sagerson",
