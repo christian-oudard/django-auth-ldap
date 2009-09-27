@@ -88,6 +88,8 @@ Developers are welcome to create their own subclasses, but most users will be
 able to use one of the built-in implementations:
 
     * :class:`~django_auth_ldap.config.PosixGroupType`
+    * :class:`~django_auth_ldap.config.GroupOfNamesType`
+    * :class:`~django_auth_ldap.config.NestedGroupOfNamesType`
     * :class:`~django_auth_ldap.config.GroupOfUniqueNamesType`
     * :class:`~django_auth_ldap.config.NestedGroupOfUniqueNamesType`
     * :class:`~django_auth_ldap.config.ActiveDirectoryGroupType`
@@ -299,9 +301,8 @@ order of impact.
     #. **Use simpler group types**. Some grouping mechanisms are more expensive
        than others. This will often be outside your control, but it's important
        to note that the extra functionality of more complex group types like
-       :class:`~django_auth_ldap.config.NestedGroupOfUniqueNamesType` is not
-       free and will generally require a greater number and complexity of LDAP
-       queries.
+       :class:`~django_auth_ldap.config.NestedGroupOfNamesType` is not free and
+       will generally require a greater number and complexity of LDAP queries.
     #. **Use direct binding**. Binding with
        :ref:`AUTH_LDAP_USER_DN_TEMPLATE` is a little bit more efficient than
        relying on :ref:`AUTH_LDAP_USER_SEARCH`. Specifically, it saves two LDAP
@@ -629,19 +630,32 @@ Configuration
     the ``posixGroup`` object class.
 
 
+.. class:: django_auth_ldap.config.GroupOfNamesType
+
+    A concrete subclass of :class:`~django_auth_ldap.config.LDAPGroupType` that
+    handles the ``groupOfNames`` object class. This does not handle nested
+    groups.
+
+
+.. class:: django_auth_ldap.config.NestedGroupOfNamesType
+
+    A concrete subclass of :class:`~django_auth_ldap.config.LDAPGroupType` that
+    handles the ``groupOfNames`` object class with nested groups. The nested
+    group support makes it less efficient, so you should only use it if you need
+    it.
+
+
 .. class:: django_auth_ldap.config.GroupOfUniqueNamesType
 
-    A concrete subclass of
-    :class:`~django_auth_ldap.config.LDAPGroupType` that handles
-    the ``groupOfUniqueNames`` object class. This does not handle nested groups.
+    A concrete subclass of :class:`~django_auth_ldap.config.LDAPGroupType` that
+    handles the ``groupOfUniqueNames`` object class. This does not handle nested
+    groups.
 
 
 .. class:: django_auth_ldap.config.NestedGroupOfUniqueNamesType
 
-    A concrete subclass of
-    :class:`~django_auth_ldap.config.LDAPGroupType` that handles
-    the ``groupOfUniqueNames`` object class with nested groups. The nested group
-    support makes it less efficient, so you should only use it if you need it.
+    A concrete subclass of :class:`~django_auth_ldap.config.LDAPGroupType` that
+    handles the ``groupOfUniqueNames`` object class with nested groups.
 
 
 .. class:: django_auth_ldap.config.ActiveDirectoryGroupType

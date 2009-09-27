@@ -333,6 +333,21 @@ class NestedMemberDNAttributeGroupType(NestedGroupType):
         return search.execute(connection)
 
 
+class GroupOfNamesType(MemberDNAttributeGroupType):
+    """
+    An LDAPGroupType subclass that handles Active Directory groups.
+    """
+    member_attr = 'member'
+
+
+class NestedGroupOfNamesType(NestedMemberDNAttributeGroupType):
+    """
+    An LDAPGroupType subclass that handles Active Directory groups with nested
+    group references.
+    """
+    member_attr = 'member'
+
+
 class GroupOfUniqueNamesType(MemberDNAttributeGroupType):
     """
     An LDAPGroupType subclass that handles groups of class groupOfUniqueNames.
