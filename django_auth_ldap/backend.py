@@ -311,7 +311,7 @@ class _LDAPUser(object):
         Populates self._user_dn and self._user_attrs.
         """
         search = ldap_settings.AUTH_LDAP_USER_SEARCH
-        if not isinstance(search, LDAPSearch):
+        if search is None:
             raise ImproperlyConfigured('AUTH_LDAP_USER_SEARCH must be an LDAPSearch instance.')
         
         results = search.execute(self.connection, {'user': self._username})
@@ -531,11 +531,11 @@ class _LDAPUserGroups(object):
         ImproperlyConfigured if anything's not right.
         """
         self._group_type = ldap_settings.AUTH_LDAP_GROUP_TYPE
-        if not isinstance(self._group_type, LDAPGroupType):
+        if self._group_type is None:
             raise ImproperlyConfigured("AUTH_LDAP_GROUP_TYPE must be an LDAPGroupType instance.")
         
         self._group_search = ldap_settings.AUTH_LDAP_GROUP_SEARCH
-        if not isinstance(self._group_search, LDAPSearch):
+        if self._group_search is None:
             raise ImproperlyConfigured("AUTH_LDAP_GROUP_SEARCH must be an LDAPSearch instance.")
     
     def get_group_names(self):
