@@ -155,14 +155,14 @@ class LDAPGroupType(object):
     if they have a group mechanism that is not handled by a built-in
     implementation.
     
-    username_attr is the name of the LDAP attribute from which we will take the
+    name_attr is the name of the LDAP attribute from which we will take the
     Django group name.
     
     Subclasses in this file must use self.ldap to access the python-ldap module.
     This will be a mock object during unit tests.
     """
-    def __init__(self, username_attr="cn"):
-        self.username_attr = username_attr
+    def __init__(self, name_attr="cn"):
+        self.name_attr = name_attr
         self.ldap = _LDAPConfig.get_ldap()
 
     def user_groups(self, ldap_user, group_search):
@@ -202,11 +202,11 @@ class LDAPGroupType(object):
         LDAP group has no corresponding Django group.
         
         The base implementation returns the value of the cn attribute, or
-        whichever attribute was given to __init__ in the username_attr
+        whichever attribute was given to __init__ in the name_attr
         parameter.
         """
         try:
-            name = group_info[1][self.username_attr][0]
+            name = group_info[1][self.name_attr][0]
         except (KeyError, IndexError):
             name = None
         
@@ -264,14 +264,14 @@ class MemberDNGroupType(LDAPGroupType):
     distinguished names. Subclasses should set member_attr to define the member
     attribute name.
     """
-    def __init__(self, member_attr, username_attr='cn'):
+    def __init__(self, member_attr, name_attr='cn'):
         """
         member_attr is the attribute on the group object that holds the list of
         member DNs.
         """
         self.member_attr = member_attr
         
-        super(MemberDNGroupType, self).__init__(username_attr)
+        super(MemberDNGroupType, self).__init__(name_attr)
     
     def user_groups(self, ldap_user, group_search):
         search = group_search.search_with_additional_terms(
@@ -291,14 +291,14 @@ class NestedMemberDNGroupType(LDAPGroupType):
     distinguished names and support nested groups. There is no shortcut for
     is_member in this case, so it's left unimplemented.
     """
-    def __init__(self, member_attr, username_attr='cn'):
+    def __init__(self, member_attr, name_attr='cn'):
         """
         member_attr is the attribute on the group object that holds the list of
         member DNs.
         """
         self.member_attr = member_attr
         
-        super(NestedMemberDNGroupType, self).__init__(username_attr)
+        super(NestedMemberDNGroupType, self).__init__(name_attr)
         
     def user_groups(self, ldap_user, group_search):
         """
@@ -340,8 +340,8 @@ class GroupOfNamesType(MemberDNGroupType):
     """
     An LDAPGroupType subclass that handles groups of class groupOfNames.
     """
-    def __init__(self, username_attr='cn'):
-        super(GroupOfNamesType, self).__init__('member', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(GroupOfNamesType, self).__init__('member', name_attr)
 
 
 class NestedGroupOfNamesType(NestedMemberDNGroupType):
@@ -349,16 +349,16 @@ class NestedGroupOfNamesType(NestedMemberDNGroupType):
     An LDAPGroupType subclass that handles groups of class groupOfNames with
     nested group references.
     """
-    def __init__(self, username_attr='cn'):
-        super(NestedGroupOfNamesType, self).__init__('member', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(NestedGroupOfNamesType, self).__init__('member', name_attr)
 
 
 class GroupOfUniqueNamesType(MemberDNGroupType):
     """
     An LDAPGroupType subclass that handles groups of class groupOfUniqueNames.
     """
-    def __init__(self, username_attr='cn'):
-        super(GroupOfUniqueNamesType, self).__init__('uniqueMember', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(GroupOfUniqueNamesType, self).__init__('uniqueMember', name_attr)
 
 
 class NestedGroupOfUniqueNamesType(NestedMemberDNGroupType):
@@ -366,16 +366,16 @@ class NestedGroupOfUniqueNamesType(NestedMemberDNGroupType):
     An LDAPGroupType subclass that handles groups of class groupOfUniqueNames
     with nested group references.
     """
-    def __init__(self, username_attr='cn'):
-        super(NestedGroupOfUniqueNamesType, self).__init__('uniqueMember', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(NestedGroupOfUniqueNamesType, self).__init__('uniqueMember', name_attr)
 
 
 class ActiveDirectoryGroupType(MemberDNGroupType):
     """
     An LDAPGroupType subclass that handles Active Directory groups.
     """
-    def __init__(self, username_attr='cn'):
-        super(ActiveDirectoryGroupType, self).__init__('member', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(ActiveDirectoryGroupType, self).__init__('member', name_attr)
 
 
 class NestedActiveDirectoryGroupType(NestedMemberDNGroupType):
@@ -383,5 +383,5 @@ class NestedActiveDirectoryGroupType(NestedMemberDNGroupType):
     An LDAPGroupType subclass that handles Active Directory groups with nested
     group references.
     """
-    def __init__(self, username_attr='cn'):
-        super(NestedActiveDirectoryGroupType, self).__init__('member', username_attr)
+    def __init__(self, name_attr='cn'):
+        super(NestedActiveDirectoryGroupType, self).__init__('member', name_attr)

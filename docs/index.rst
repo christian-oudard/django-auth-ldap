@@ -95,7 +95,7 @@ other two cover mechanisms whereby a group object stores a list of its members
 as distinguished names. This includes groupOfNames, groupOfUniqueNames, and
 Active Directory groups, among others. The nested variant allows groups to
 contain other groups, to as many levels as you like. For convenience and
-readability, trivial subclasses of the above are provided:
+readability, several trivial subclasses of the above are provided:
 
     * :class:`~django_auth_ldap.config.GroupOfNamesType`
     * :class:`~django_auth_ldap.config.NestedGroupOfNamesType`
@@ -104,8 +104,8 @@ readability, trivial subclasses of the above are provided:
     * :class:`~django_auth_ldap.config.ActiveDirectoryGroupType`
     * :class:`~django_auth_ldap.config.NestedActiveDirectoryGroupType`
 
-To configure the backend, you'll need to provide some basic information about
-your LDAP groups. :ref:`AUTH_LDAP_GROUP_SEARCH` is an
+To get started, you'll need to provide some basic information about your LDAP
+groups. :ref:`AUTH_LDAP_GROUP_SEARCH` is an
 :class:`~django_auth_ldap.config.LDAPSearch` object that identifies the set of
 relevant group objects. That is, all groups that users might belong to as well
 as any others that we might need to know about (in the case of nested groups,
@@ -211,7 +211,7 @@ Implementations of :class:`~django_auth_ldap.config.LDAPGroupType` will have an
 algorithm for deriving the Django group name from the LDAP group. Clients that
 need to modify this behavior can subclass the
 :class:`~django_auth_ldap.config.LDAPGroupType` class. All of the built-in
-implementations take a ``username_attr`` argument to ``__init__``, which
+implementations take a ``name_attr`` argument to ``__init__``, which
 specifies the LDAP attribute from which to take the Django group name. By
 default, the ``cn`` attribute is used.
 
@@ -348,7 +348,7 @@ and arguments are included for completeness.
     AUTH_LDAP_GROUP_SEARCH = LDAPSearch("ou=django,ou=groups,dc=example,dc=com",
         ldap.SCOPE_SUBTREE, "(objectClass=groupOfNames)"
     )
-    AUTH_LDAP_GROUP_TYPE = GroupOfNamesType(username_attr="cn")
+    AUTH_LDAP_GROUP_TYPE = GroupOfNamesType(name_attr="cn")
 
     # Only users in this group can log in.
     AUTH_LDAP_REQUIRE_GROUP = "cn=enabled,ou=django,ou=groups,dc=example,dc=com"
@@ -498,7 +498,7 @@ Default: ``None``
 
 An :class:`~django_auth_ldap.config.LDAPSearch` object that finds all LDAP
 groups that users might belong to. If your configuration makes any references to
-LDAP groups, this and :ref:`AUTH_LDAP_GROUP_TYPE`. must be set.
+LDAP groups, this and :ref:`AUTH_LDAP_GROUP_TYPE` must be set.
 
 
 .. _AUTH_LDAP_GROUP_TYPE:
@@ -628,11 +628,11 @@ Configuration
     LDAP grouping mechanisms. Implementations are provided for common group
     types or you can write your own. See the source code for subclassing notes.
     
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
         
         By default, LDAP groups will be mapped to Django groups by taking the
         first value of the cn attribute. You can specify a different attribute
-        with ``username_attr``.
+        with ``name_attr``.
 
 
 .. class:: PosixGroupType
@@ -641,6 +641,7 @@ Configuration
     handles the ``posixGroup`` object class. This checks for both primary group
     and group membership.
 
+    .. method:: __init__(name_attr='cn')
 
 .. class:: MemberDNGroupType
 
@@ -648,7 +649,7 @@ Configuration
     :class:`~django_auth_ldap.config.LDAPGroupType` that handles grouping
     mechanisms wherein the group object contains a list of its member DNs.
     
-    .. method:: __init__(member_attr, username_attr='cn')
+    .. method:: __init__(member_attr, name_attr='cn')
     
         * ``member_attr``: The attribute on the group object that contains a
           list of member DNs. 'member' and 'uniqueMember' are common examples.
@@ -660,7 +661,7 @@ Configuration
     allows groups to contain other groups as members. Group hierarchies will be
     traversed to determine membership.
 
-    .. method:: __init__(member_attr, username_attr='cn')
+    .. method:: __init__(member_attr, name_attr='cn')
     
         As above.
 
@@ -671,7 +672,7 @@ Configuration
     that handles the ``groupOfNames`` object class. Equivalent to
     ``MemberDNGroupType('member')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
 .. class:: NestedGroupOfNamesType
@@ -681,7 +682,7 @@ Configuration
     ``groupOfNames`` object class. Equivalent to
     ``NestedMemberDNGroupType('member')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
 .. class:: GroupOfUniqueNamesType
@@ -690,7 +691,7 @@ Configuration
     that handles the ``groupOfUniqueNames`` object class. Equivalent to
     ``MemberDNGroupType('uniqueMember')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
 .. class:: NestedGroupOfUniqueNamesType
@@ -700,7 +701,7 @@ Configuration
     ``groupOfUniqueNames`` object class. Equivalent to
     ``NestedMemberDNGroupType('uniqueMember')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
 .. class:: ActiveDirectoryGroupType
@@ -709,7 +710,7 @@ Configuration
     that handles Active Directory groups. Equivalent to
     ``MemberDNGroupType('member')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
 .. class:: NestedActiveDirectoryGroupType
@@ -719,14 +720,11 @@ Configuration
     Active Directory groups. Equivalent to
     ``NestedMemberDNGroupType('member')``.
 
-    .. method:: __init__(username_attr='cn')
+    .. method:: __init__(name_attr='cn')
 
 
-LDAPBackend
------------
-
-Methods
-~~~~~~~
+Backend
+-------
 
 .. module:: django_auth_ldap.backend
 
