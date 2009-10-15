@@ -155,11 +155,14 @@ class LDAPGroupType(object):
     if they have a group mechanism that is not handled by a built-in
     implementation.
     
+    username_attr is the name of the LDAP attribute from which we will take the
+    Django group name.
+    
     Subclasses in this file must use self.ldap to access the python-ldap module.
     This will be a mock object during unit tests.
     """
-    def __init__(self, name_attr="cn"):
-        self.name_attr = name_attr
+    def __init__(self, username_attr="cn"):
+        self.username_attr = username_attr
         self.ldap = _LDAPConfig.get_ldap()
 
     def user_groups(self, ldap_user, group_search):
@@ -199,53 +202,16 @@ class LDAPGroupType(object):
         LDAP group has no corresponding Django group.
         
         The base implementation returns the value of the cn attribute, or
-        whichever attribute was given to __init__ in the name_attr parameter.
+        whichever attribute was given to __init__ in the username_attr
+        parameter.
         """
         try:
-            name = group_info[1][self.name_attr][0]
+            name = group_info[1][self.username_attr][0]
         except (KeyError, IndexError):
             name = None
         
         return name
 
-
-class NestedGroupType(LDAPGroupType):
-    """
-    An abstract base class for group types that support nesting (groups with
-    other groups as members). Subclasses should implement
-    find_groups_with_any_member.
-    """
-    def user_groups(self, ldap_user, group_search):
-        """
-        This searches for all of a user's groups from the bottom up. In other
-        words, it returns the groups that the user belongs to, the groups that
-        those groups belong to, etc. Circular references will be detected and
-        pruned. Subclasses should not override this.
-        """
-        group_info_map = {} # Maps group_dn to group_info of groups we've found
-        member_dn_set = set([ldap_user.dn]) # Member DNs to search with next
-        handled_dn_set = set() # Member DNs that we've already searched with
-        
-        while len(member_dn_set) > 0:
-            group_infos = self.find_groups_with_any_member(member_dn_set,
-                group_search, ldap_user.connection)
-            new_group_info_map = dict([(info[0], info) for info in group_infos])
-            group_info_map.update(new_group_info_map)
-            handled_dn_set.update(member_dn_set)
-
-            # Get ready for the next iteration. To avoid cycles, we make sure
-            # never to search with the same member DN twice.
-            member_dn_set = set(new_group_info_map.keys()) - handled_dn_set
-        
-        return group_info_map.values()
-        
-    def find_groups_with_any_member(self, member_dn_set, group_search, connection):
-        """
-        Subclasses must override this. It should return all of the groups
-        returned by group_search that contain any DN from member_dn_set.
-        """
-        return []
-    
 
 class PosixGroupType(LDAPGroupType):
     """
@@ -292,13 +258,20 @@ class PosixGroupType(LDAPGroupType):
         return is_member
 
 
-class MemberDNAttributeGroupType(LDAPGroupType):
+class MemberDNGroupType(LDAPGroupType):
     """
     An abstract base class for group types that store lists of members as
     distinguished names. Subclasses should set member_attr to define the member
     attribute name.
     """
-    # member_attr = 'memberAttributeName'
+    def __init__(self, member_attr, username_attr='cn'):
+        """
+        member_attr is the attribute on the group object that holds the list of
+        member DNs.
+        """
+        self.member_attr = member_attr
+        
+        super(MemberDNGroupType, self).__init__(username_attr)
     
     def user_groups(self, ldap_user, group_search):
         search = group_search.search_with_additional_terms(
@@ -312,15 +285,45 @@ class MemberDNAttributeGroupType(LDAPGroupType):
             ldap_user.dn)
 
 
-class NestedMemberDNAttributeGroupType(NestedGroupType):
+class NestedMemberDNGroupType(LDAPGroupType):
     """
     An abstract base class for group types that store lists of members as
     distinguished names and support nested groups. There is no shortcut for
-    is_member in this case, so it's left unimplemented. Subclasses should set
-    member_attr to define the member attribute name.
+    is_member in this case, so it's left unimplemented.
     """
-    # member_attr = 'memberAttributeName'
-    
+    def __init__(self, member_attr, username_attr='cn'):
+        """
+        member_attr is the attribute on the group object that holds the list of
+        member DNs.
+        """
+        self.member_attr = member_attr
+        
+        super(NestedMemberDNGroupType, self).__init__(username_attr)
+        
+    def user_groups(self, ldap_user, group_search):
+        """
+        This searches for all of a user's groups from the bottom up. In other
+        words, it returns the groups that the user belongs to, the groups that
+        those groups belong to, etc. Circular references will be detected and
+        pruned.
+        """
+        group_info_map = {} # Maps group_dn to group_info of groups we've found
+        member_dn_set = set([ldap_user.dn]) # Member DNs to search with next
+        handled_dn_set = set() # Member DNs that we've already searched with
+        
+        while len(member_dn_set) > 0:
+            group_infos = self.find_groups_with_any_member(member_dn_set,
+                group_search, ldap_user.connection)
+            new_group_info_map = dict([(info[0], info) for info in group_infos])
+            group_info_map.update(new_group_info_map)
+            handled_dn_set.update(member_dn_set)
+
+            # Get ready for the next iteration. To avoid cycles, we make sure
+            # never to search with the same member DN twice.
+            member_dn_set = set(new_group_info_map.keys()) - handled_dn_set
+        
+        return group_info_map.values()
+        
     def find_groups_with_any_member(self, member_dn_set, group_search, connection):
         terms = [
             "(%s=%s)" % (self.member_attr, self.ldap.filter.escape_filter_chars(dn))
@@ -333,46 +336,52 @@ class NestedMemberDNAttributeGroupType(NestedGroupType):
         return search.execute(connection)
 
 
-class GroupOfNamesType(MemberDNAttributeGroupType):
+class GroupOfNamesType(MemberDNGroupType):
     """
-    An LDAPGroupType subclass that handles Active Directory groups.
+    An LDAPGroupType subclass that handles groups of class groupOfNames.
     """
-    member_attr = 'member'
+    def __init__(self, username_attr='cn'):
+        super(GroupOfNamesType, self).__init__('member', username_attr)
 
 
-class NestedGroupOfNamesType(NestedMemberDNAttributeGroupType):
+class NestedGroupOfNamesType(NestedMemberDNGroupType):
     """
-    An LDAPGroupType subclass that handles Active Directory groups with nested
-    group references.
+    An LDAPGroupType subclass that handles groups of class groupOfNames with
+    nested group references.
     """
-    member_attr = 'member'
+    def __init__(self, username_attr='cn'):
+        super(NestedGroupOfNamesType, self).__init__('member', username_attr)
 
 
-class GroupOfUniqueNamesType(MemberDNAttributeGroupType):
+class GroupOfUniqueNamesType(MemberDNGroupType):
     """
     An LDAPGroupType subclass that handles groups of class groupOfUniqueNames.
     """
-    member_attr = 'uniqueMember'
+    def __init__(self, username_attr='cn'):
+        super(GroupOfUniqueNamesType, self).__init__('uniqueMember', username_attr)
 
 
-class NestedGroupOfUniqueNamesType(NestedMemberDNAttributeGroupType):
+class NestedGroupOfUniqueNamesType(NestedMemberDNGroupType):
     """
     An LDAPGroupType subclass that handles groups of class groupOfUniqueNames
     with nested group references.
     """
-    member_attr = 'uniqueMember'
+    def __init__(self, username_attr='cn'):
+        super(NestedGroupOfUniqueNamesType, self).__init__('uniqueMember', username_attr)
 
 
-class ActiveDirectoryGroupType(MemberDNAttributeGroupType):
+class ActiveDirectoryGroupType(MemberDNGroupType):
     """
     An LDAPGroupType subclass that handles Active Directory groups.
     """
-    member_attr = 'member'
+    def __init__(self, username_attr='cn'):
+        super(ActiveDirectoryGroupType, self).__init__('member', username_attr)
 
 
-class NestedActiveDirectoryGroupType(NestedMemberDNAttributeGroupType):
+class NestedActiveDirectoryGroupType(NestedMemberDNGroupType):
     """
     An LDAPGroupType subclass that handles Active Directory groups with nested
     group references.
     """
-    member_attr = 'member'
+    def __init__(self, username_attr='cn'):
+        super(NestedActiveDirectoryGroupType, self).__init__('member', username_attr)

@@ -34,8 +34,11 @@ from django.contrib.auth.models import User, Permission, Group
 from django.test import TestCase
 
 from django_auth_ldap import backend
-from django_auth_ldap.config import _LDAPConfig, LDAPSearch, \
-    PosixGroupType, GroupOfUniqueNamesType, NestedGroupOfUniqueNamesType
+from django_auth_ldap.config import _LDAPConfig, LDAPSearch
+from django_auth_ldap.config import PosixGroupType, MemberDNGroupType, NestedMemberDNGroupType
+from django_auth_ldap.config import GroupOfNamesType, NestedGroupOfNamesType
+from django_auth_ldap.config import GroupOfUniqueNamesType, NestedGroupOfUniqueNamesType
+from django_auth_ldap.config import ActiveDirectoryGroupType, NestedActiveDirectoryGroupType
 
 
 class TestSettings(backend.LDAPSettings):
@@ -329,40 +332,40 @@ class LDAPTest(TestCase):
     })
 
     # groupOfUniqueName groups
-    active_goun = ("cn=active_goun,ou=groups,o=test", {
-        "cn": ["active_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": ["uid=alice,ou=people,o=test"]
+    active_gon = ("cn=active_gon,ou=groups,o=test", {
+        "cn": ["active_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": ["uid=alice,ou=people,o=test"]
     })
-    staff_goun = ("cn=staff_goun,ou=groups,o=test", {
-        "cn": ["staff_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": ["uid=alice,ou=people,o=test"]
+    staff_gon = ("cn=staff_gon,ou=groups,o=test", {
+        "cn": ["staff_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": ["uid=alice,ou=people,o=test"]
     })
-    superuser_goun = ("cn=superuser_goun,ou=groups,o=test", {
-        "cn": ["superuser_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": ["uid=alice,ou=people,o=test"]
+    superuser_gon = ("cn=superuser_gon,ou=groups,o=test", {
+        "cn": ["superuser_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": ["uid=alice,ou=people,o=test"]
     })
     
     # Nested groups with a circular reference
-    parent_goun = ("cn=parent_goun,ou=groups,o=test", {
-        "cn": ["parent_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": ["cn=nested_goun,ou=groups,o=test"]
+    parent_gon = ("cn=parent_gon,ou=groups,o=test", {
+        "cn": ["parent_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": ["cn=nested_gon,ou=groups,o=test"]
     })
-    nested_goun = ("cn=nested_goun,ou=groups,o=test", {
-        "cn": ["nested_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": [
+    nested_gon = ("cn=nested_gon,ou=groups,o=test", {
+        "cn": ["nested_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": [
             "uid=alice,ou=people,o=test",
-            "cn=circular_goun,ou=groups,o=test"
+            "cn=circular_gon,ou=groups,o=test"
         ]
     })
-    circular_goun = ("cn=circular_goun,ou=groups,o=test", {
-        "cn": ["circular_goun"],
-        "objectClass": ["groupOfUniqueNames"],
-        "uniqueMember": ["cn=parent_goun,ou=groups,o=test"]
+    circular_gon = ("cn=circular_gon,ou=groups,o=test", {
+        "cn": ["circular_gon"],
+        "objectClass": ["groupOfNames"],
+        "member": ["cn=parent_gon,ou=groups,o=test"]
     })
     
 
@@ -370,12 +373,12 @@ class LDAPTest(TestCase):
         alice[0]: alice[1],
         bob[0]: bob[1],
         nobody[0]: nobody[1],
-        active_goun[0]: active_goun[1],
-        staff_goun[0]: staff_goun[1],
-        superuser_goun[0]: superuser_goun[1],
-        parent_goun[0]: parent_goun[1],
-        nested_goun[0]: nested_goun[1],
-        circular_goun[0]: circular_goun[1],
+        active_gon[0]: active_gon[1],
+        staff_gon[0]: staff_gon[1],
+        superuser_gon[0]: superuser_gon[1],
+        parent_gon[0]: parent_gon[1],
+        nested_gon[0]: nested_gon[1],
+        circular_gon[0]: circular_gon[1],
         active_px[0]: active_px[1],
         staff_px[0]: staff_px[1],
         superuser_px[0]: superuser_px[1],
@@ -638,8 +641,8 @@ class LDAPTest(TestCase):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=GroupOfUniqueNamesType(),
-            AUTH_LDAP_REQUIRE_GROUP="cn=active_goun,ou=groups,o=test"
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
+            AUTH_LDAP_REQUIRE_GROUP="cn=active_gon,ou=groups,o=test"
         )
         
         alice = self.backend.authenticate(username='alice', password='password')
@@ -651,15 +654,15 @@ class LDAPTest(TestCase):
             ['initialize', 'simple_bind_s', 'compare_s', 'initialize', 'simple_bind_s', 'compare_s'])
 
 
-    def test_unique_names_membership(self):
+    def test_dn_group_membership(self):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=GroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
             AUTH_LDAP_USER_FLAGS_BY_GROUP={
-                'is_active': "cn=active_goun,ou=groups,o=test",
-                'is_staff': "cn=staff_goun,ou=groups,o=test",
-                'is_superuser': "cn=superuser_goun,ou=groups,o=test"
+                'is_active': "cn=active_gon,ou=groups,o=test",
+                'is_staff': "cn=staff_gon,ou=groups,o=test",
+                'is_superuser': "cn=superuser_gon,ou=groups,o=test"
             }
         )
         
@@ -697,35 +700,35 @@ class LDAPTest(TestCase):
         self.assert_(not bob.is_superuser)
     
     
-    def test_nested_unique_names_membership(self):
+    def test_nested_dn_group_membership(self):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=NestedGroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=NestedMemberDNGroupType(member_attr='member'),
             AUTH_LDAP_USER_FLAGS_BY_GROUP={
-                'is_active': "cn=parent_goun,ou=groups,o=test",
-                'is_staff': "cn=parent_goun,ou=groups,o=test",
+                'is_active': "cn=parent_gon,ou=groups,o=test",
+                'is_staff': "cn=parent_gon,ou=groups,o=test",
             }
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=uid=alice,ou=people,o=test)))", None, 0),
-            [self.active_goun, self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=uid=alice,ou=people,o=test)))", None, 0),
+            [self.active_gon, self.nested_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=nested_goun,ou=groups,o=test)(uniqueMember=cn=active_goun,ou=groups,o=test)))", None, 0),
-            [self.parent_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=active_gon,ou=groups,o=test)(member=cn=nested_gon,ou=groups,o=test)))", None, 0),
+            [self.parent_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=parent_goun,ou=groups,o=test)))", None, 0),
-            [self.circular_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=parent_gon,ou=groups,o=test)))", None, 0),
+            [self.circular_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=circular_goun,ou=groups,o=test)))", None, 0),
-            [self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=circular_gon,ou=groups,o=test)))", None, 0),
+            [self.nested_gon]
         )
         
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=uid=bob,ou=people,o=test)))", None, 0),
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=uid=bob,ou=people,o=test)))", None, 0),
             []
         )
         
@@ -753,17 +756,17 @@ class LDAPTest(TestCase):
         self.assert_(not nobody.is_active)
     
     
-    def test_unique_names_group_permissions(self):
+    def test_dn_group_permissions(self):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=GroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
             AUTH_LDAP_FIND_GROUP_PERMS=True
         )
         self._init_groups()
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(uniqueMember=uid=alice,ou=people,o=test))", None, 0),
-            [self.active_goun, self.staff_goun, self.superuser_goun, self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(member=uid=alice,ou=people,o=test))", None, 0),
+            [self.active_gon, self.staff_gon, self.superuser_gon, self.nested_gon]
         )
         
         alice = User.objects.create(username='alice')
@@ -802,7 +805,7 @@ class LDAPTest(TestCase):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=GroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
             AUTH_LDAP_FIND_GROUP_PERMS=True
         )
         self._init_groups()
@@ -816,17 +819,17 @@ class LDAPTest(TestCase):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=GroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
             AUTH_LDAP_FIND_GROUP_PERMS=True,
             AUTH_LDAP_CACHE_GROUPS=True
         )
         self._init_groups()
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(uniqueMember=uid=alice,ou=people,o=test))", None, 0),
-            [self.active_goun, self.staff_goun, self.superuser_goun, self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(member=uid=alice,ou=people,o=test))", None, 0),
+            [self.active_gon, self.staff_gon, self.superuser_gon, self.nested_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(uniqueMember=uid=bob,ou=people,o=test))", None, 0),
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(member=uid=bob,ou=people,o=test))", None, 0),
             []
         )
         
@@ -871,31 +874,31 @@ class LDAPTest(TestCase):
         self._init_settings(
             AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
             AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
-            AUTH_LDAP_GROUP_TYPE=NestedGroupOfUniqueNamesType(),
+            AUTH_LDAP_GROUP_TYPE=NestedMemberDNGroupType(member_attr='member'),
             AUTH_LDAP_MIRROR_GROUPS=True,
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=uid=alice,ou=people,o=test)))", None, 0),
-            [self.active_goun, self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=uid=alice,ou=people,o=test)))", None, 0),
+            [self.active_gon, self.nested_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=nested_goun,ou=groups,o=test)(uniqueMember=cn=active_goun,ou=groups,o=test)))", None, 0),
-            [self.parent_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=active_gon,ou=groups,o=test)(member=cn=nested_gon,ou=groups,o=test)))", None, 0),
+            [self.parent_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=parent_goun,ou=groups,o=test)))", None, 0),
-            [self.circular_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=parent_gon,ou=groups,o=test)))", None, 0),
+            [self.circular_gon]
         )
         self.mock_ldap.set_return_value('search_s',
-            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(uniqueMember=cn=circular_goun,ou=groups,o=test)))", None, 0),
-            [self.nested_goun]
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(|(member=cn=circular_gon,ou=groups,o=test)))", None, 0),
+            [self.nested_gon]
         )
         
         alice = self.backend.authenticate(username='alice', password='password')
         
         self.assertEqual(Group.objects.count(), 4)
         self.assertEqual(set(Group.objects.all().values_list('name', flat=True)),
-            set(['active_goun', 'nested_goun', 'parent_goun', 'circular_goun']))
+            set(['active_gon', 'nested_gon', 'parent_gon', 'circular_gon']))
         self.assertEqual(set(alice.groups.all()), set(Group.objects.all()))
 
 
@@ -908,8 +911,8 @@ class LDAPTest(TestCase):
             Permission.objects.get(codename="change_user")
         ]
 
-        active_goun = Group.objects.create(name='active_goun')
-        active_goun.permissions.add(*permissions)
+        active_gon = Group.objects.create(name='active_gon')
+        active_gon.permissions.add(*permissions)
 
         active_px = Group.objects.create(name='active_px')
         active_px.permissions.add(*permissions)
