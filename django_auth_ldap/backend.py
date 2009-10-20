@@ -210,12 +210,12 @@ class _LDAPUser(object):
 
             user = self._user
         except self.AuthenticationFailed, e:
-            logger.debug("Authentication failed for %s" % self._username)
+            logger.debug(u"Authentication failed for %s" % self._username)
         except self.ldap.LDAPError, e:
-            logger.warning("Caught LDAPError while authenticating %s: %s",
+            logger.warning(u"Caught LDAPError while authenticating %s: %s",
                 self._username, pprint.pformat(e))
         except Exception, e:
-            logger.warning("Caught Exception while authenticating %s: %s",
+            logger.warning(u"Caught Exception while authenticating %s: %s",
                 self._username, pprint.pformat(e))
             raise
         
@@ -448,7 +448,7 @@ class _LDAPUser(object):
         #         AND ct."id" = p."content_type_id"
         #         AND g."name" IN (%s, %s, ...)""", ['group1', 'group2', ...])
         qn = django.db.connection.ops.quote_name
-        sql = """
+        sql = u"""
             SELECT ct.%s, p.%s
             FROM %s p, %s gp, %s g, %s ct
             WHERE p.%s = gp.%s
@@ -465,7 +465,7 @@ class _LDAPUser(object):
         
         cursor.execute(sql, group_names)
         self._group_permissions = \
-            set(["%s.%s" % (row[0], row[1]) for row in cursor.fetchall()])
+            set([u"%s.%s" % (row[0], row[1]) for row in cursor.fetchall()])
 
     def _get_groups(self):
         """
@@ -491,10 +491,11 @@ class _LDAPUser(object):
     
     def _bind_as(self, bind_dn, bind_password):
         """
-        Binds to the LDAP server with the given credentials. This does not
-        trap exceptions.
+        Binds to the LDAP server with the given credentials. This does not trap
+        exceptions.
         """
-        self._get_connection().simple_bind_s(bind_dn, bind_password)
+        self._get_connection().simple_bind_s(bind_dn.encode('utf-8'),
+            bind_password.encode('utf-8'))
         self._connection_bound = True
 
     def _get_connection(self):
@@ -607,7 +608,7 @@ class _LDAPUserGroups(object):
             cache.set(key, value, ldap_settings.AUTH_LDAP_GROUP_CACHE_TIMEOUT)
     
     def _cache_key(self, attr_name):
-        return 'auth_ldap.%s.%s.%s' % (self.__class__.__name__, attr_name, self._ldap_user.dn)
+        return u'auth_ldap.%s.%s.%s' % (self.__class__.__name__, attr_name, self._ldap_user.dn)
 
 
 class LDAPSettings(object):

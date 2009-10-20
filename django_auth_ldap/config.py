@@ -90,7 +90,7 @@ class LDAPSearch(object):
     documented for configuration purposes. Internal clients may use the other
     methods to refine and execute the search.
     """
-    def __init__(self, base_dn, scope, filterstr='(objectClass=*)'):
+    def __init__(self, base_dn, scope, filterstr=u'(objectClass=*)'):
         """
         These parameters are the same as the first three parameters to
         ldap.search_s.
@@ -111,9 +111,9 @@ class LDAPSearch(object):
         for name, value in term_dict.iteritems():
             if escape:
                 value = self.ldap.filter.escape_filter_chars(value)
-            term_strings.append('(%s=%s)' % (name, value))
+            term_strings.append(u'(%s=%s)' % (name, value))
         
-        filterstr = '(&%s)' % ''.join(term_strings)
+        filterstr = u'(&%s)' % ''.join(term_strings)
         
         return self.__class__(self.base_dn, self.scope, filterstr)
     
@@ -123,7 +123,7 @@ class LDAPSearch(object):
         string. The caller is responsible for passing in a properly escaped
         string.
         """
-        filterstr = '(&%s%s)' % (self.filterstr, filterstr)
+        filterstr = u'(&%s%s)' % (self.filterstr, filterstr)
         
         return self.__class__(self.base_dn, self.scope, filterstr)
     
@@ -131,20 +131,63 @@ class LDAPSearch(object):
         """
         Executes the search on the given connection (an LDAPObject). filterargs
         is an object that will be used for expansion of the filter string.
+        
+        The python-ldap library returns utf8-encoded strings. For the sake of
+        sanity, this method will decode all result strings and return them as
+        Unicode.
         """
         try:
             filterstr = self.filterstr % filterargs
-            results = connection.search_s(self.base_dn, self.scope, filterstr)
+            results = connection.search_s(self.base_dn.encode('utf-8'),
+                self.scope, filterstr.encode('utf-8'))
+            results = _DeepCoder.decode(results, 'utf-8')
 
             result_dns = [result[0] for result in results]
-            logger.debug("search_s('%s', %d, '%s') returned %d objects: %s" %
+            logger.debug(u"search_s('%s', %d, '%s') returned %d objects: %s" %
                 (self.base_dn, self.scope, filterstr, len(result_dns), "; ".join(result_dns)))
         except self.ldap.LDAPError, e:
             results = []
-            logger.error("search_s('%s', %d, '%s') raised %s" %
+            logger.error(u"search_s('%s', %d, '%s') raised %s" %
                 (self.base_dn, self.scope, filterstr, pprint.pformat(e)))
         
         return results
+
+
+class _DeepCoder(object):
+    """
+    Encodes and decodes strings in a nested structure of lists, tuples, and
+    dicts. This is helpful when interacting with the Unicode-unaware
+    python-ldap.
+    """
+    @classmethod
+    def decode(cls, value, encoding):
+        """
+        Given a complex value, returns a copy of it with all non-Unicode strings
+        decoded using the given encoding. Anything that is not a str, tuple,
+        list, or dict is left untouched.
+        """
+        return cls(encoding)._decode(value)
+    
+    def __init__(self, encoding):
+        self.encoding = encoding
+    
+    def _decode(self, value):
+        if isinstance(value, str):
+            return value.decode(self.encoding)
+        elif isinstance(value, list):
+            return self._decode_list(value)
+        elif isinstance(value, tuple):
+            return tuple(self._decode_list(value))
+        elif isinstance(value, dict):
+            return self._decode_dict(value)
+        else:
+            return value
+    
+    def _decode_list(self, value):
+        return [self._decode(v) for v in value]
+    
+    def _decode_dict(self, value):
+        return dict([(self._decode(k), self._decode(v)) for k,v in value.iteritems()])
 
 
 class LDAPGroupType(object):
@@ -228,7 +271,7 @@ class PosixGroupType(LDAPGroupType):
             user_uid = ldap_user.attrs['uid'][0]
             user_gid = ldap_user.attrs['gidNumber'][0]
             
-            filterstr = '(|(gidNumber=%s)(memberUid=%s))' % (
+            filterstr = u'(|(gidNumber=%s)(memberUid=%s))' % (
                 self.ldap.filter.escape_filter_chars(user_gid),
                 self.ldap.filter.escape_filter_chars(user_uid)
             )
@@ -249,9 +292,9 @@ class PosixGroupType(LDAPGroupType):
             user_uid = ldap_user.attrs['uid'][0]
             user_gid = ldap_user.attrs['gidNumber'][0]
 
-            is_member = ldap_user.connection.compare_s(group_dn, 'memberUid', user_uid)
+            is_member = ldap_user.connection.compare_s(group_dn.encode('utf-8'), 'memberUid', user_uid.encode('utf-8'))
             if not is_member:
-                is_member = ldap_user.connection.compare_s(group_dn, 'gidNumber', user_gid)
+                is_member = ldap_user.connection.compare_s(group_dn.encode('utf-8'), 'gidNumber', user_gid.encode('utf-8'))
         except (KeyError, IndexError):
             is_member = False
         
@@ -281,8 +324,8 @@ class MemberDNGroupType(LDAPGroupType):
         return groups
 
     def is_member(self, ldap_user, group_dn):
-        return ldap_user.connection.compare_s(group_dn, self.member_attr,
-            ldap_user.dn)
+        return ldap_user.connection.compare_s(group_dn.encode('utf-8'),
+            self.member_attr.encode('utf-8'), ldap_user.dn.encode('utf-8'))
 
 
 class NestedMemberDNGroupType(LDAPGroupType):
@@ -326,11 +369,11 @@ class NestedMemberDNGroupType(LDAPGroupType):
         
     def find_groups_with_any_member(self, member_dn_set, group_search, connection):
         terms = [
-            "(%s=%s)" % (self.member_attr, self.ldap.filter.escape_filter_chars(dn))
+            u"(%s=%s)" % (self.member_attr, self.ldap.filter.escape_filter_chars(dn))
             for dn in member_dn_set
         ]
         
-        filterstr = "(|%s)" % "".join(terms)
+        filterstr = u"(|%s)" % "".join(terms)
         search = group_search.search_with_additional_term_string(filterstr)
         
         return search.execute(connection)
