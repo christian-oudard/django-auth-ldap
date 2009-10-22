@@ -1,3 +1,5 @@
+# coding: utf-8
+
 # Copyright (c) 2009, Peter Sagerson
 # All rights reserved.
 # 
@@ -306,10 +308,20 @@ class LDAPTest(TestCase):
         "givenName": ["Robert"],
         "sn": ["Barker"]
     })
+    dressler = (u"uid=dreßler,ou=people,o=test".encode('utf-8'), {
+        "uid": [u"dreßler".encode('utf-8')],
+        "objectClass": ["person", "organizationalPerson", "inetOrgPerson", "posixAccount"],
+        "userPassword": ["password"],
+        "uidNumber": ["1002"],
+        "gidNumber": ["50"],
+        "givenName": ["Wolfgang"],
+        "sn": [u"Dreßler".encode('utf-8')]
+    })
     nobody = ("uid=nobody,ou=people,o=test", {
         "uid": ["nobody"],
         "objectClass": ["person", "organizationalPerson", "inetOrgPerson", "posixAccount"],
-        "userPassword": ["password"]
+        "userPassword": ["password"],
+        "binaryAttr": ["\xb2"]  # Invalid UTF-8
     })
 
     # posixGroup objects
@@ -372,6 +384,7 @@ class LDAPTest(TestCase):
     mock_ldap = MockLDAP({
         alice[0]: alice[1],
         bob[0]: bob[1],
+        dressler[0]: dressler[1],
         nobody[0]: nobody[1],
         active_gon[0]: active_gon[1],
         staff_gon[0]: staff_gon[1],
@@ -605,6 +618,19 @@ class LDAPTest(TestCase):
         self.assert_(user is None)
         self.assertEqual(self.mock_ldap.ldap_methods_called(),
             ['initialize', 'simple_bind_s'])
+    
+    
+    def test_unicode_user(self):
+        self._init_settings(
+            AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
+            AUTH_LDAP_USER_ATTR_MAP={'first_name': 'givenName', 'last_name': 'sn'}
+        )
+        
+        user = self.backend.authenticate(username=u'dreßler', password='password')
+        
+        self.assert_(user is not None)
+        self.assertEqual(user.username, u'dreßler')
+        self.assertEqual(user.last_name, u'Dreßler')
     
     
     def test_populate_user(self):

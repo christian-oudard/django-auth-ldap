@@ -140,7 +140,7 @@ class LDAPSearch(object):
             filterstr = self.filterstr % filterargs
             results = connection.search_s(self.base_dn.encode('utf-8'),
                 self.scope, filterstr.encode('utf-8'))
-            results = _DeepCoder.decode(results, 'utf-8')
+            results = _DeepStringCoder('utf-8').decode(results)
 
             result_dns = [result[0] for result in results]
             logger.debug(u"search_s('%s', %d, '%s') returned %d objects: %s" %
@@ -153,41 +153,35 @@ class LDAPSearch(object):
         return results
 
 
-class _DeepCoder(object):
+class _DeepStringCoder(object):
     """
     Encodes and decodes strings in a nested structure of lists, tuples, and
     dicts. This is helpful when interacting with the Unicode-unaware
     python-ldap.
     """
-    @classmethod
-    def decode(cls, value, encoding):
-        """
-        Given a complex value, returns a copy of it with all non-Unicode strings
-        decoded using the given encoding. Anything that is not a str, tuple,
-        list, or dict is left untouched.
-        """
-        return cls(encoding)._decode(value)
-    
     def __init__(self, encoding):
         self.encoding = encoding
     
-    def _decode(self, value):
-        if isinstance(value, str):
-            return value.decode(self.encoding)
-        elif isinstance(value, list):
-            return self._decode_list(value)
-        elif isinstance(value, tuple):
-            return tuple(self._decode_list(value))
-        elif isinstance(value, dict):
-            return self._decode_dict(value)
-        else:
-            return value
+    def decode(self, value):
+        try:
+            if isinstance(value, str):
+                value = value.decode(self.encoding)
+            elif isinstance(value, list):
+                value = self._decode_list(value)
+            elif isinstance(value, tuple):
+                value = tuple(self._decode_list(value))
+            elif isinstance(value, dict):
+                value = self._decode_dict(value)
+        except UnicodeDecodeError:
+            pass
+        
+        return value
     
     def _decode_list(self, value):
-        return [self._decode(v) for v in value]
+        return [self.decode(v) for v in value]
     
     def _decode_dict(self, value):
-        return dict([(self._decode(k), self._decode(v)) for k,v in value.iteritems()])
+        return dict([(self.decode(k), self.decode(v)) for k,v in value.iteritems()])
 
 
 class LDAPGroupType(object):

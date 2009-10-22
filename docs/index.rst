@@ -187,6 +187,11 @@ the above is inadequate, you can also access the user's raw LDAP attributes.
     * ``attrs``: The user's LDAP attributes as a dictionary of lists of string
       values.
 
+Python-ldap returns all attribute values as utf8-encoded strings. For
+convenience, this module will try to decode all values into Unicode strings. Any
+string that can not be successfully decoded will be left as-is; this may apply
+to binary values such as Active Directory's objectSid.
+
 .. note::
 
     Users created by :class:`~django_auth_ldap.backend.LDAPBackend` will have an
