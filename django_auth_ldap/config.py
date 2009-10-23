@@ -56,6 +56,7 @@ class _LDAPConfig(object):
         if cls.ldap is None:
             import ldap
             import ldap.filter
+            import ldap.dn
             
             cls.ldap = ldap
         
