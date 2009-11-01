@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(
     name="django-auth-ldap",
-    version="1.0b6",
+    version="1.0b7",
     description="Django LDAP authentication backend",
     long_description="""This is a Django authentication backend that authenticates against an LDAP service. Configuration can be as simple as a single distinguished name template, but there are many rich configuration options for working with users, groups, and permissions.
     
@@ -12,7 +12,7 @@ This package requires Python 2.3, Django 1.0, and python-ldap. Suggestions and f
     """,
     url="http://packages.python.org/django-auth-ldap/",
     author="Peter Sagerson",
-    author_email="psagers@ignorare.net",
+    author_email="psagers_pypi@ignorare.net",
     license="BSD",
     packages=["django_auth_ldap"],
     classifiers=[

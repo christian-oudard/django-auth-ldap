@@ -267,6 +267,15 @@ determine a user's group memberships, only their permissions. If you want to
 make decisions based directly on group membership, you'll have to mirror the
 groups.
 
+:class:`~django_auth_ldap.backend.LDAPBackend` has one more feature pertaining
+to permissions, which is the ability to handle authorization for users that it
+did not authenticate. For example, you might be using Django's RemoteUserBackend
+to map externally authenticated users to Django users. By setting
+:ref:`AUTH_LDAP_AUTHORIZE_ALL_USERS`,
+:class:`~django_auth_ldap.backend.LDAPBackend` will map these users to LDAP
+users in the normal way in order to provide authorization information. Note that
+this does *not* work with :ref:`AUTH_LDAP_MIRROR_GROUPS`; group mirroring is a
+feature of authentication, not authorization.
 
 Logging
 =======
@@ -411,6 +420,17 @@ If ``True``, the fields of a :class:`~django.contrib.auth.models.User` object
 will be updated with the latest values from the LDAP directory every time the
 user logs in. Otherwise the :class:`~django.contrib.auth.models.User` object
 will only be populated when it is automatically created.
+
+
+.. _AUTH_LDAP_AUTHORIZE_ALL_USERS:
+
+AUTH_LDAP_AUTHORIZE_ALL_USERS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Default: ``False``
+
+If ``True``, :class:`~django_auth_ldap.backend.LDAPBackend` will be able furnish
+permissions for any Django user, regardless of which backend authenticated it.
 
 
 .. _AUTH_LDAP_BIND_DN:

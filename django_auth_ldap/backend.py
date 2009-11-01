@@ -124,6 +124,9 @@ class LDAPBackend(object):
         return self.get_group_permissions(user)
 
     def get_group_permissions(self, user):
+        if not hasattr(user, 'ldap_user') and ldap_settings.AUTH_LDAP_AUTHORIZE_ALL_USERS:
+            _LDAPUser(self, user=user) # This sets user.ldap_user
+        
         if hasattr(user, 'ldap_user'):
             return user.ldap_user.get_group_permissions()
         else:
@@ -168,7 +171,6 @@ class _LDAPUser(object):
         self.backend = backend
         self.ldap = backend.ldap_module()
         self._username = username
-        self._password = None
         self._user_dn = None
         self._user_attrs = None
         self._user = None
@@ -201,10 +203,8 @@ class _LDAPUser(object):
         """
         user = None
         
-        self._password = password
-        
         try:
-            self._authenticate_user_dn()
+            self._authenticate_user_dn(password)
             self._check_requirements()
             self._get_or_create_user()
 
@@ -267,13 +267,13 @@ class _LDAPUser(object):
     # Authentication
     #
 
-    def _authenticate_user_dn(self):
+    def _authenticate_user_dn(self, password):
         """
         Binds to the LDAP server with the user's DN and password. Raises
         AuthenticationFailed on failure.
         """
         try:
-            self._bind_as(self.dn, self._password)
+            self._bind_as(self.dn, password)
         except self.ldap.INVALID_CREDENTIALS:
             raise self.AuthenticationFailed("User DN/password rejected by LDAP server.")
     
@@ -433,7 +433,7 @@ class _LDAPUser(object):
         Populates self._group_permissions based on LDAP group membership and
         Django group permissions.
         
-        The SQL is lifted (with modifications) from ModelBackend.
+        The SQL is lifted from ModelBackend, with modifications.
         """
         group_names = self._get_groups().get_group_names()
         placeholders = ', '.join(['%s'] * len(group_names))
@@ -619,6 +619,7 @@ class LDAPSettings(object):
     """
     defaults = {
         'AUTH_LDAP_ALWAYS_UPDATE_USER': True,
+        'AUTH_LDAP_AUTHORIZE_ALL_USERS': False,
         'AUTH_LDAP_BIND_DN': '',
         'AUTH_LDAP_BIND_PASSWORD': '',
         'AUTH_LDAP_CACHE_GROUPS': False,

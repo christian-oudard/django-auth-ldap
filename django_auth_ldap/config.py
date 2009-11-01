@@ -298,9 +298,7 @@ class PosixGroupType(LDAPGroupType):
 
 class MemberDNGroupType(LDAPGroupType):
     """
-    An abstract base class for group types that store lists of members as
-    distinguished names. Subclasses should set member_attr to define the member
-    attribute name.
+    A group type that stores lists of members as distinguished names.
     """
     def __init__(self, member_attr, name_attr='cn'):
         """
@@ -325,9 +323,9 @@ class MemberDNGroupType(LDAPGroupType):
 
 class NestedMemberDNGroupType(LDAPGroupType):
     """
-    An abstract base class for group types that store lists of members as
-    distinguished names and support nested groups. There is no shortcut for
-    is_member in this case, so it's left unimplemented.
+    A group type that stores lists of members as distinguished names and
+    supports nested groups. There is no shortcut for is_member in this case, so
+    it's left unimplemented.
     """
     def __init__(self, member_attr, name_attr='cn'):
         """

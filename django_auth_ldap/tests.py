@@ -926,6 +926,24 @@ class LDAPTest(TestCase):
         self.assertEqual(set(Group.objects.all().values_list('name', flat=True)),
             set(['active_gon', 'nested_gon', 'parent_gon', 'circular_gon']))
         self.assertEqual(set(alice.groups.all()), set(Group.objects.all()))
+    
+    def test_authorize_external_users(self):
+        self._init_settings(
+            AUTH_LDAP_USER_DN_TEMPLATE='uid=%(user)s,ou=people,o=test',
+            AUTH_LDAP_GROUP_SEARCH=LDAPSearch('ou=groups,o=test', self.mock_ldap.SCOPE_SUBTREE),
+            AUTH_LDAP_GROUP_TYPE=MemberDNGroupType(member_attr='member'),
+            AUTH_LDAP_FIND_GROUP_PERMS=True,
+            AUTH_LDAP_AUTHORIZE_ALL_USERS=True
+        )
+        self._init_groups()
+        self.mock_ldap.set_return_value('search_s',
+            ("ou=groups,o=test", 2, "(&(objectClass=*)(member=uid=alice,ou=people,o=test))", None, 0),
+            [self.active_gon, self.staff_gon, self.superuser_gon, self.nested_gon]
+        )
+        
+        alice = User.objects.create(username='alice')
+        
+        self.assertEqual(self.backend.get_group_permissions(alice), set(["auth.add_user", "auth.change_user"]))
 
 
     def _init_settings(self, **kwargs):
